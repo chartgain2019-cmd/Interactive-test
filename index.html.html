@@ -1,0 +1,1919 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الاختبارات التفاعلي</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap');
+        * { 
+            font-family: 'Cairo', sans-serif; 
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(to bottom right, #e0f2fe, #e0e7ff);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .fade-in { 
+            animation: fadeIn 0.5s ease-in; 
+        }
+        @keyframes fadeIn { 
+            from { 
+                opacity: 0; 
+                transform: translateY(20px); 
+            } 
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            } 
+        }
+        .pulse-red { 
+            animation: pulse-red 1s infinite; 
+        }
+        @keyframes pulse-red { 
+            0%, 100% { 
+                background-color: #ef4444; 
+            } 
+            50% { 
+                background-color: #dc2626; 
+            } 
+        }
+        .certificate-bg { 
+            background: linear-gradient(135deg, #1a365d 0%, #2a4365 100%); 
+            border: 20px solid #D4AF37; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+        }
+        .drag-handle { 
+            cursor: move; 
+        }
+        .sortable-ghost { 
+            opacity: 0.4; 
+        }
+        .chart-container { 
+            position: relative; 
+            height: 300px; 
+        }
+        .hidden {
+            display: none !important;
+        }
+        .container {
+            width: 100%;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 1rem;
+        }
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 0.5rem;
+            }
+        }
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #certificateScreen, #certificateScreen * {
+                visibility: visible;
+            }
+            #certificateScreen {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+            }
+            #certificateContent {
+                box-shadow: none;
+                border: none;
+            }
+            .no-print {
+                display: none !important;
+            }
+        }
+        .questions-stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        @media (max-width: 1024px) {
+            .questions-stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* تنسيق الشعار الجديد */
+        .logo-header {
+            background: #7344e2;
+            padding: 15px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        .logo-img {
+            height: 70px;
+            width: auto;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+        .logo-text {
+            font-size: 36px;
+            font-weight: bold;
+            color: #ffffff;
+        }
+        
+        /* تذييل الصفحة */
+        .footer {
+            background: #3d557d;
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: auto;
+        }
+        
+        /* تحسين مظهر الأزرار */
+        .btn {
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* تنسيق علامات التبويب */
+        .tab-btn {
+            transition: all 0.3s ease;
+        }
+        .tab-btn:hover {
+            background-color: #f3f4f6;
+        }
+
+        /* رسائل التحميل والتنبيهات */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .alert {
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+<!-- شعار الصفحة -->
+<div class="logo-header">
+    <div class="container">
+        <div class="logo-container">
+            <!-- تم استبدال المسار المحلي بصورة افتراضية -->
+            <img src="E:\imeg.png" alt="شعار البرنامج" class="logo-img">
+            <div class="logo-text">نظام الاختبارات التفاعلي</div>
+        </div>
+    </div>
+</div>
+
+<!-- الشاشة الرئيسية -->
+<div id="mainScreen" class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- رأس الصفحة -->
+        <div class="bg-white rounded-2xl shadow-xl p-8 mb-8 text-center relative">
+            <h1 id="schoolName" class="text-4xl font-bold text-gray-800 mb-2">مدرسة الوليد بن عمارة الابتدائية</h1>
+            <div class="flex justify-center items-center gap-4 text-lg text-gray-600 mb-6 flex-wrap">
+                <span>المادة: <span id="subjectName" class="font-semibold text-blue-600">العلوم</span></span>
+                <span>الصف: <span id="gradeName" class="font-semibold text-blue-600">الرابع الابتدائي</span></span>
+                <span>الاختبار: <span id="testName" class="font-semibold text-blue-600">اختبار درس الخلايا</span></span>
+            </div>
+            
+            <!-- دخول المعلم -->
+            <div class="absolute top-4 left-4">
+                <button id="teacherLoginBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                    </svg>
+                    دخول المعلم
+                </button>
+            </div>
+        </div>
+
+        <!-- نموذج بيانات الطالب -->
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">بيانات الطالب</h2>
+            
+            <div class="grid md:grid-cols-2 gap-6 mb-8">
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">اسم الطالب</label>
+                    <input type="text" id="studentName" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="أدخل اسم الطالب">
+                </div>
+                
+                <div>
+                    <label class="block text-gray-700 font-semibold mb-2">الفصل</label>
+                    <select id="studentClass" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">اختر الفصل</option>
+                        <option value="رابع 1">رابع 1</option>
+                        <option value="رابع 2">رابع 2</option>
+                        <option value="رابع 3">رابع 3</option>
+                        <option value="رابع 4">رابع 4</option>
+                        <option value="رابع 5">رابع 5</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="text-center">
+                <button id="startTestBtn" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl text-xl font-semibold shadow-lg transform hover:scale-105 transition-all duration-200">
+                    بدء الاختبار
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- شاشة الاختبار -->
+<div id="testScreen" class="hidden container mx-auto px-4 py-8">
+    <!-- شريط المعلومات العلوي -->
+    <div class="bg-white rounded-xl shadow-lg p-4 mb-6">
+        <div class="flex justify-between items-center text-sm flex-wrap gap-4">
+            <div class="flex gap-4 flex-wrap">
+                <span>المادة: <span id="testSubject" class="font-semibold text-blue-600"></span></span>
+                <span>الطالب: <span id="testStudent" class="font-semibold text-green-600"></span></span>
+                <span>الفصل: <span id="testClass" class="font-semibold text-purple-600"></span></span>
+            </div>
+            <div class="flex gap-4 flex-wrap">
+                <span>السؤال: <span id="currentQuestion" class="font-semibold">1</span> من <span id="totalQuestions" class="font-semibold">5</span></span>
+                <span>النقاط: <span id="currentScore" class="font-semibold text-green-600">0</span></span>
+            </div>
+        </div>
+        
+        <!-- شريط التقدم -->
+        <div class="mt-3">
+            <div class="bg-gray-200 rounded-full h-3">
+                <div id="progressBar" class="bg-gradient-to-r from-blue-500 to-purple-500 h-3 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- منطقة السؤال -->
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-xl p-8">
+            <!-- المؤقت -->
+            <div class="text-center mb-6">
+                <div id="timer" class="inline-block bg-blue-100 text-blue-800 px-6 py-3 rounded-full text-2xl font-bold">30</div>
+            </div>
+            
+            <!-- السؤال -->
+            <div class="mb-8">
+                <h3 class="text-2xl font-bold text-gray-800 mb-6 text-center" id="questionText">ما هو ناتج 2 + 2؟</h3>
+                
+                <!-- الخيارات -->
+                <div class="grid gap-4" id="optionsContainer">
+                    <!-- سيتم تعبئة الخيارات ديناميكيًا -->
+                </div>
+            </div>
+            
+            <!-- منطقة التصحيح -->
+            <div id="feedbackArea" class="hidden text-center p-4 rounded-xl mb-4"></div>
+        </div>
+    </div>
+</div>
+
+<!-- شاشة النتائج -->
+<div id="resultsScreen" class="hidden container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white rounded-2xl shadow-xl p-8 text-center">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8">نتائج الاختبار</h2>
+            
+            <div class="grid md:grid-cols-3 gap-6 mb-8">
+                <div class="bg-blue-50 p-6 rounded-xl">
+                    <h3 class="text-lg font-semibold text-blue-800 mb-2">النقاط</h3>
+                    <p class="text-3xl font-bold text-blue-600" id="finalScore">0</p>
+                </div>
+                
+                <div class="bg-green-50 p-6 rounded-xl">
+                    <h3 class="text-lg font-semibold text-green-800 mb-2">النسبة المئوية</h3>
+                    <p class="text-3xl font-bold text-green-600" id="percentage">0%</p>
+                </div>
+                
+                <div class="bg-purple-50 p-6 rounded-xl">
+                    <h3 class="text-lg font-semibold text-purple-800 mb-2">التقدير</h3>
+                    <p class="text-2xl font-bold text-purple-600" id="grade">-</p>
+                </div>
+            </div>
+            
+            <div class="flex flex-wrap justify-center gap-4">
+                <button id="showCertificateBtn" class="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition-all">
+                    عرض الشهادة
+                </button>
+                
+                <button id="shareWhatsAppBtn" class="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition-all">
+                    مشاركة بالواتساب
+                </button>
+                
+                <button id="retakeTestBtn" class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-6 py-3 rounded-lg font-semibold shadow-lg transition-all">
+                    إعادة الاختبار
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- شاشة الشهادة -->
+<div id="certificateScreen" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-screen overflow-y-auto">
+        <div class="certificate-bg text-white p-8 text-center">
+            <h2 class="text-3xl font-bold mb-4">شهادة إنجاز</h2>
+            <div class="bg-white bg-opacity-20 rounded-xl p-6" id="certificateContent">
+                <div class="text-2xl font-bold mb-4" id="certSchoolName">مدرسة الوليد بن عمارة الابتدائية</div>
+                <div class="text-lg mb-6">تشهد بأن الطالب</div>
+                <div class="text-3xl font-bold mb-4 text-yellow-300" id="certStudentName">اسم الطالب</div>
+                <div class="text-lg mb-4">من الصف <span id="certGrade">الرابع الابتدائي</span> - الفصل <span id="certClass">رابع 1</span></div>
+                <div class="text-lg mb-4">قد أتم بنجاح <span id="certTestName">اختبار درس الخلايا</span></div>
+                <div class="text-lg mb-4">في مادة <span id="certSubject">العلوم</span></div>
+                <div class="text-xl mb-4">بدرجة <span id="certScore" class="font-bold text-yellow-300">0</span> من <span id="certTotalScore" class="font-bold text-yellow-300">5</span></div>
+                <div class="text-xl mb-4">بنسبة <span id="certPercentage" class="font-bold text-yellow-300">0%</span></div>
+                <div class="text-xl mb-6">بتقدير <span id="certGradeText" class="font-bold text-yellow-300">-</span></div>
+                
+                <div class="flex justify-between text-sm mt-8 flex-wrap gap-4">
+                    <div>
+                        <div>معلم المادة</div>
+                        <div id="certTeacher" class="font-semibold">أ. عبدالله الشهري</div>
+                    </div>
+                    <div>
+                        <div>مدير المدرسة</div>
+                        <div id="certPrincipal" class="font-semibold">أ. خالد الحمرين</div>
+                    </div>
+                </div>
+                
+                <div class="flex justify-between text-xs mt-4 flex-wrap gap-2">
+                    <div>تاريخ الإصدار: <span id="certDate"></span></div>
+                    <div>رقم الشهادة: <span id="certNumber"></span></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="p-6 text-center no-print">
+            <button id="printCertificateBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold ml-4">
+                طباعة الشهادة
+            </button>
+            <button id="closeCertificateBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold">
+                إغلاق
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- شاشة دخول المعلم -->
+<div id="teacherLoginScreen" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+        <h2 class="text-2xl font-bold text-gray-800 mb-6 text-center">دخول المعلم</h2>
+        
+        <div class="mb-4">
+            <label class="block text-gray-700 font-semibold mb-2">اسم المستخدم</label>
+            <input type="text" id="teacherUsername" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="أدخل اسم المستخدم">
+        </div>
+        
+        <div class="mb-6">
+            <label class="block text-gray-700 font-semibold mb-2">كلمة المرور</label>
+            <input type="password" id="teacherPassword" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="أدخل كلمة المرور">
+        </div>
+        
+        <div class="flex gap-4">
+            <button id="teacherLoginBtnModal" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold">
+                دخول
+            </button>
+            <button id="closeTeacherLoginBtn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white py-3 rounded-lg font-semibold">
+                إلغاء
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- لوحة تحكم المعلم -->
+<div id="teacherDashboard" class="hidden container mx-auto px-4 py-8">
+    <div class="bg-white rounded-2xl shadow-xl">
+        <!-- رأس لوحة التحكم -->
+        <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 rounded-t-2xl">
+            <div class="flex justify-between items-center flex-wrap gap-4">
+                <h1 class="text-2xl font-bold">لوحة تحكم المعلم</h1>
+                <button id="teacherLogoutBtn" class="bg-red-500 hover:bg-red-600 px-4 py-2 rounded-lg font-semibold transition-colors">
+                    تسجيل الخروج
+                </button>
+            </div>
+        </div>
+        
+        <!-- التبويبات -->
+        <div class="border-b border-gray-200 overflow-x-auto">
+            <nav class="flex min-w-max">
+                <button data-tab="settings" class="tab-btn px-6 py-4 font-semibold text-blue-600 border-b-2 border-blue-600">الإعدادات العامة</button>
+                <button data-tab="classes" class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-blue-600">إدارة الفصول</button>
+                <button data-tab="questions" class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-blue-600">إدارة الأسئلة</button>
+                <button data-tab="statistics" class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-blue-600">الإحصائيات</button>
+                <button data-tab="results" class="tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-blue-600">نتائج الطلاب</button>
+            </nav>
+        </div>
+        
+        <!-- محتوى التبويبات -->
+        <div class="p-6">
+            <!-- تبويب الإعدادات العامة -->
+            <div id="settingsTab" class="tab-content">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">الإعدادات العامة</h2>
+                
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">اسم المدرسة</label>
+                        <input type="text" id="settingSchoolName" class="w-full px-4 py-3 border border-gray-300 rounded-lg" value="مدرسة الوليد بن عمارة الابتدائية">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">المادة</label>
+                        <input type="text" id="settingSubject" class="w-full px-4 py-3 border border-gray-300 rounded-lg" value="العلوم">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">اسم الاختبار</label>
+                        <input type="text" id="settingTestName" class="w-full px-4 py-3 border border-gray-300 rounded-lg" value="اختبار درس الخلايا">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">الصف الدراسي</label>
+                        <input type="text" id="settingGrade" class="w-full px-4 py-3 border border-gray-300 rounded-lg" value="الرابع الابتدائي">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">معلم المادة</label>
+                        <input type="text" id="settingTeacher" class="w-full px-4 py-3 border border-gray-300 rounded-lg" value="أ. عبدالله الشهري">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">مدير المدرسة</label>
+                        <input type="text" id="settingPrincipal" class="w-full px-4 py-3 border border-gray-300 rounded-lg" value="أ. خالد الحمرين">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-gray-700 font-semibold mb-2">وقت السؤال (بالثانية)</label>
+                        <input type="number" id="settingQuestionTime" class="w-full px-4 py-3 border border-gray-300 rounded-lg" value="30" min="10" max="300">
+                    </div>
+                </div>
+                
+                <div class="flex gap-4 mt-6">
+                    <button id="saveSettingsBtn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold">
+                        حفظ الإعدادات
+                    </button>
+                    <button id="resetSettingsBtn" class="bg-gray-600 hover:bg-gray-700 text-white px-6 py-3 rounded-lg font-semibold">
+                        إعادة الضبط
+                    </button>
+                </div>
+            </div>
+            
+            <!-- تبويب إدارة الفصول -->
+            <div id="classesTab" class="tab-content hidden">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">إدارة الفصول</h2>
+                
+                <div class="bg-gray-50 p-4 rounded-lg mb-6">
+                    <h3 class="font-semibold mb-4">إضافة فصل جديد</h3>
+                    <div class="flex gap-4 flex-wrap">
+                        <input type="text" id="newClassName" class="flex-1 min-w-[200px] px-4 py-2 border border-gray-300 rounded-lg" placeholder="اسم الفصل">
+                        <button id="addClassBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg font-semibold">
+                            إضافة
+                        </button>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="font-semibold mb-4">الفصول الحالية</h3>
+                    <div id="classesList" class="space-y-2">
+                        <!-- سيتم إضافة الفصول هنا -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- تبويب إدارة الأسئلة -->
+            <div id="questionsTab" class="tab-content hidden">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">إدارة الأسئلة</h2>
+                
+                <div class="bg-gray-50 p-6 rounded-lg mb-6">
+                    <h3 class="font-semibold mb-4">إضافة سؤال جديد</h3>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-semibold mb-2">نص السؤال</label>
+                        <textarea id='newQuestionText' class="w-full px-4 py-3 border border-gray-300 rounded-lg" rows="3" placeholder="أدخل نص السؤال"></textarea>
+                    </div>
+                    
+                    <div class="grid md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">الخيار الأول</label>
+                            <input type="text" id="option1" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="الخيار الأول">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">الخيار الثاني</label>
+                            <input type="text" id="option2" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="الخيار الثاني">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">الخيار الثالث</label>
+                            <input type="text" id="option3" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="الخيار الثالث">
+                        </div>
+                        <div>
+                            <label class="block text-gray-700 font-semibold mb-2">الخيار الرابع</label>
+                            <input type="text" id="option4" class="w-full px-4 py-2 border border-gray-300 rounded-lg" placeholder="الخيار الرابع">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-gray-700 font-semibold mb-2">الإجابة الصحيحة</label>
+                        <select id="correctAnswer" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <option value="0">الخيار الأول</option>
+                            <option value="1">الخيار الثاني</option>
+                            <option value="2">الخيار الثالث</option>
+                            <option value="3">الخيار الرابع</option>
+                        </select>
+                    </div>
+                    
+                    <button id="addQuestionBtn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold">
+                        إضافة السؤال
+                    </button>
+                </div>
+                
+                <div>
+                    <h3 class="font-semibold mb-4">الأسئلة الحالية</h3>
+                    <div id="questionsList" class="space-y-4">
+                        <!-- سيتم إضافة الأسئلة هنا -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- تبويب الإحصائيات -->
+            <div id="statisticsTab" class="tab-content hidden">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">الإحصائيات</h2>
+                
+                <div class="grid md:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-blue-50 p-6 rounded-xl text-center">
+                        <h3 class="text-lg font-semibold text-blue-800 mb-2">إجمالي الطلاب</h3>
+                        <p class="text-3xl font-bold text-blue-600" id="totalStudents">0</p>
+                    </div>
+                    
+                    <div class="bg-green-50 p-6 rounded-xl text-center">
+                        <h3 class="text-lg font-semibold text-green-800 mb-2">متوسط الدرجات</h3>
+                        <p class="text-3xl font-bold text-green-600" id="averageScore">0</p>
+                    </div>
+                    
+                    <div class="bg-purple-50 p-6 rounded-xl text-center">
+                        <h3 class="text-lg font-semibold text-purple-800 mb-2">أعلى درجة</h3>
+                        <p class="text-3xl font-bold text-purple-600" id="highestScore">0</p>
+                    </div>
+                    
+                    <div class="bg-orange-50 p-6 rounded-xl text-center">
+                        <h3 class="text-lg font-semibold text-orange-800 mb-2">معدل النجاح</h3>
+                        <p class="text-3xl font-bold text-orange-600" id="passRate">0%</p>
+                    </div>
+                </div>
+                
+                <div class="mb-8">
+                    <h3 class="text-lg font-semibold mb-4">تحليل أداء الأسئلة</h3>
+                    <div class="bg-white border border-gray-200 rounded-xl p-6">
+                        <div class="questions-stats-grid">
+                            <div id="mostSuccessfulQuestions">
+                                <h4 class="font-semibold mb-3 text-center text-green-700">الأسئلة الأكثر نجاحاً (مناطق القوة)</h4>
+                                <div id="mostSuccessfulList" class="space-y-3 max-h-60 overflow-y-auto">
+                                    <p class="text-gray-500 text-center">سيتم عرض الأسئلة الأكثر نجاحاً هنا</p>
+                                </div>
+                            </div>
+                            <div id="leastSuccessfulQuestions">
+                                <h4 class="font-semibold mb-3 text-center text-red-700">الأسئلة الأقل نجاحاً (مناطق الضعف)</h4>
+                                <div id="leastSuccessfulList" class="space-y-3 max-h-60 overflow-y-auto">
+                                    <p class="text-gray-500 text-center">سيتم عرض الأسئلة الأقل نجاحاً هنا</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div class="bg-white border border-gray-200 rounded-xl p-6">
+                        <h3 class="text-lg font-semibold mb-4">توزيع الدرجات</h3>
+                        <div class="chart-container">
+                            <canvas id="scoresChart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white border border-gray-200 rounded-xl p-6">
+                        <h3 class="text-lg font-semibold mb-4">الأداء حسب الفصل</h3>
+                        <div class="chart-container">
+                            <canvas id="classPerformanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- تبويب نتائج الطلاب -->
+            <div id="resultsTab" class="tab-content hidden">
+                <h2 class="text-xl font-bold text-gray-800 mb-6">نتائج الطلاب</h2>
+                
+                <div class="flex justify-between items-center mb-6 flex-wrap gap-4">
+                    <div class="flex gap-4 flex-wrap">
+                        <input type="text" id="searchStudent" class="px-4 py-2 border border-gray-300 rounded-lg" placeholder="البحث باسم الطالب">
+                        <select id="sortBy" class="px-4 py-2 border border-gray-300 rounded-lg">
+                            <option value="name">ترتيب حسب الاسم</option>
+                            <option value="class">ترتيب حسب الفصل</option>
+                            <option value="score">ترتيب حسب الدرجة</option>
+                            <option value="percentage">ترتيب حسب النسبة</option>
+                            <option value="grade">ترتيب حسب التقدير</option>
+                            <option value="date">ترتيب حسب التاريخ</option>
+                        </select>
+                        <select id="sortOrder" class="px-4 py-2 border border-gray-300 rounded-lg">
+                            <option value="asc">تصاعدي</option>
+                            <option value="desc">تنازلي</option>
+                        </select>
+                    </div>
+                    
+                    <button id="exportResultsBtn" class="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg font-semibold">
+                        تصدير Excel
+                    </button>
+                    <button id="clearResultsBtn" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-lg font-semibold">
+                        مسح جميع النتائج
+                    </button>
+                </div>
+                
+                <div class="overflow-x-auto">
+                    <table class="w-full bg-white border border-gray-200 rounded-lg">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">اسم الطالب</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الفصل</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الدرجة</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">النسبة</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">التقدير</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">التاريخ</th>
+                                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="resultsTableBody">
+                            <!-- سيتم إضافة النتائج هنا -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- تذييل الصفحة -->
+<div class="footer">
+    <div class="container">
+        2025 جميع الحقوق محفوظة | تم إنشاء هذه الصفحة لأغراض تعليمية برمجة وتصميم الأستاذ عبدالله الشهري
+    </div>
+</div>
+
+<script>
+// البيانات الأساسية
+let currentUser = {
+    name: '',
+    class: '',
+    score: 0,
+    answers: []
+};
+
+let testSettings = {
+    schoolName: 'مدرسة الوليد بن عمارة الابتدائية',
+    subject: 'العلوم',
+    testName: 'اختبار درس الخلايا',
+    grade: 'الرابع الابتدائي',
+    teacher: 'أ. عبدالله الشهري',
+    principal: 'أ. خالد الحمرين',
+    questionTime: 30
+};
+
+let classes = ['رابع 1', 'رابع 2', 'رابع 3', 'رابع 4', 'رابع 5'];
+
+let questions = [
+    {
+        question: 'ما هو ناتج 2 + 2؟',
+        options: ['3', '4', '5', '6'],
+        correct: 1
+    },
+    {
+        question: 'ما هو جذر العدد 16؟',
+        options: ['2', '3', '4', '5'],
+        correct: 2
+    },
+    {
+        question: 'ما هو ناتج 5 × 3؟',
+        options: ['12', '15', '18', '20'],
+        correct: 1
+    },
+    {
+        question: 'ما هو ناتج 10 ÷ 2؟',
+        options: ['3', '4', '5', '6'],
+        correct: 2
+    },
+    {
+        question: 'ما هو ناتج 7 - 3؟',
+        options: ['3', '4', '5', '6'],
+        correct: 1
+    }
+];
+
+let currentQuestionIndex = 0;
+let timer = null;
+let timeLeft = 0;
+let studentResults = [];
+
+// تهيئة الأحداث عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', function() {
+    // تحديث الواجهة الرئيسية
+    updateUIWithSettings();
+    loadClassesToSelect();
+    
+    // محاولة تحميل النتائج من localStorage
+    try {
+        const savedResults = localStorage.getItem('studentResults');
+        if (savedResults) {
+            studentResults = JSON.parse(savedResults);
+        }
+    } catch (error) {
+        console.error('خطأ في تحميل النتائج المحفوظة:', error);
+        studentResults = [];
+    }
+    
+    // إعداد معالجي الأحداث
+    setupEventListeners();
+});
+
+function updateUIWithSettings() {
+    document.getElementById('schoolName').textContent = testSettings.schoolName;
+    document.getElementById('subjectName').textContent = testSettings.subject;
+    document.getElementById('gradeName').textContent = testSettings.grade;
+    document.getElementById('testName').textContent = testSettings.testName;
+}
+
+function loadClassesToSelect() {
+    const select = document.getElementById('studentClass');
+    select.innerHTML = '<option value="">اختر الفصل</option>';
+    classes.forEach(className => {
+        const option = document.createElement('option');
+        option.value = className;
+        option.textContent = className;
+        select.appendChild(option);
+    });
+}
+
+function setupEventListeners() {
+    // أحداث الشاشة الرئيسية
+    document.getElementById('startTestBtn').addEventListener('click', startTest);
+    document.getElementById('teacherLoginBtn').addEventListener('click', showTeacherLogin);
+    
+    // أحداث شاشة النتائج
+    document.getElementById('showCertificateBtn').addEventListener('click', showCertificate);
+    document.getElementById('shareWhatsAppBtn').addEventListener('click', shareWhatsApp);
+    document.getElementById('retakeTestBtn').addEventListener('click', retakeTest);
+    
+    // أحداث شاشة الشهادة
+    document.getElementById('printCertificateBtn').addEventListener('click', printCertificate);
+    document.getElementById('closeCertificateBtn').addEventListener('click', closeCertificate);
+    
+    // أحداث شاشة دخول المعلم
+    document.getElementById('teacherLoginBtnModal').addEventListener('click', teacherLogin);
+    document.getElementById('closeTeacherLoginBtn').addEventListener('click', closeTeacherLogin);
+    
+    // أحداث لوحة تحكم المعلم
+    document.getElementById('teacherLogoutBtn').addEventListener('click', teacherLogout);
+    document.getElementById('saveSettingsBtn').addEventListener('click', saveSettings);
+    document.getElementById('resetSettingsBtn').addEventListener('click', resetSettings);
+    document.getElementById('addClassBtn').addEventListener('click', addClass);
+    document.getElementById('addQuestionBtn').addEventListener('click', addQuestion);
+    document.getElementById('exportResultsBtn').addEventListener('click', exportResults);
+    document.getElementById('clearResultsBtn').addEventListener('click', clearAllResults);
+    
+    // أحداث التبويبات
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            showTab(this.dataset.tab);
+        });
+    });
+    
+    // أحداث البحث والفرز
+    document.getElementById('searchStudent').addEventListener('input', filterResults);
+    document.getElementById('sortBy').addEventListener('change', filterResults);
+    document.getElementById('sortOrder').addEventListener('change', filterResults);
+}
+
+// وظائف الشاشة الرئيسية
+function startTest() {
+    try {
+        const name = document.getElementById('studentName').value.trim();
+        const studentClass = document.getElementById('studentClass').value;
+        
+        if (!name || !studentClass) {
+            alert('يرجى إدخال جميع البيانات المطلوبة');
+            return;
+        }
+        
+        currentUser.name = name;
+        currentUser.class = studentClass;
+        currentUser.score = 0;
+        currentUser.answers = [];
+        currentQuestionIndex = 0;
+        
+        switchScreen('mainScreen', 'testScreen');
+        updateTestInfo();
+        showQuestion();
+    } catch (error) {
+        console.error('خطأ في بدء الاختبار:', error);
+        alert('حدث خطأ غير متوقع أثناء بدء الاختبار. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function updateTestInfo() {
+    document.getElementById('testSubject').textContent = testSettings.subject;
+    document.getElementById('testStudent').textContent = currentUser.name;
+    document.getElementById('testClass').textContent = currentUser.class;
+    document.getElementById('totalQuestions').textContent = questions.length;
+}
+
+// وظائف الاختبار
+function showQuestion() {
+    try {
+        if (currentQuestionIndex >= questions.length) {
+            endTest();
+            return;
+        }
+        
+        const question = questions[currentQuestionIndex];
+        
+        document.getElementById('currentQuestion').textContent = currentQuestionIndex + 1;
+        document.getElementById('currentScore').textContent = currentUser.score;
+        document.getElementById('questionText').textContent = question.question;
+        
+        const optionsContainer = document.getElementById('optionsContainer');
+        optionsContainer.innerHTML = '';
+        
+        const optionLabels = ['أ', 'ب', 'ج', 'د'];
+        
+        question.options.forEach((option, index) => {
+            const button = document.createElement('button');
+            button.className = 'option-btn bg-gray-50 hover:bg-blue-50 border-2 border-gray-200 hover:border-blue-300 p-4 rounded-xl text-right transition-all duration-200';
+            button.onclick = () => selectAnswer(index);
+            button.innerHTML = `<span class="font-semibold text-blue-600 ml-3">${optionLabels[index]})</span> ${option}`;
+            optionsContainer.appendChild(button);
+        });
+        
+        document.getElementById('feedbackArea').classList.add('hidden');
+        
+        // تحديث شريط التقدم
+        const progress = ((currentQuestionIndex + 1) / questions.length) * 100;
+        document.getElementById('progressBar').style.width = progress + '%';
+        
+        startTimer();
+    } catch (error) {
+        console.error('خطأ في عرض السؤال:', error);
+        alert('حدث خطأ غير متوقع أثناء عرض السؤال. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function startTimer() {
+    // مسح المؤقت السابق إن وجد
+    clearAllIntervals();
+    
+    timeLeft = testSettings.questionTime;
+    const timerElement = document.getElementById('timer');
+    
+    if (!timerElement) return;
+    
+    timerElement.className = 'inline-block bg-blue-100 text-blue-800 px-6 py-3 rounded-full text-2xl font-bold';
+    timerElement.textContent = timeLeft;
+    
+    timer = setInterval(() => {
+        timeLeft--;
+        timerElement.textContent = timeLeft;
+        
+        if (timeLeft <= 10) {
+            timerElement.className = 'inline-block bg-red-100 text-red-800 px-6 py-3 rounded-full text-2xl font-bold pulse-red';
+        }
+        
+        if (timeLeft <= 0) {
+            clearInterval(timer);
+            timer = null;
+            timeUp();
+        }
+    }, 1000);
+}
+
+function selectAnswer(selectedIndex) {
+    try {
+        clearInterval(timer);
+        timer = null;
+        
+        const question = questions[currentQuestionIndex];
+        const isCorrect = selectedIndex === question.correct;
+        
+        currentUser.answers.push({
+            questionIndex: currentQuestionIndex,
+            selected: selectedIndex,
+            correct: question.correct,
+            isCorrect: isCorrect
+        });
+        
+        if (isCorrect) {
+            currentUser.score++;
+        }
+        
+        showFeedback(selectedIndex, question.correct, isCorrect);
+        disableOptions();
+        
+        setTimeout(() => {
+            currentQuestionIndex++;
+            showQuestion();
+        }, 3000);
+    } catch (error) {
+        console.error('خطأ في اختيار الإجابة:', error);
+        alert('حدث خطأ غير متوقع أثناء معالجة الإجابة. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function timeUp() {
+    try {
+        const question = questions[currentQuestionIndex];
+        
+        currentUser.answers.push({
+            questionIndex: currentQuestionIndex,
+            selected: -1,
+            correct: question.correct,
+            isCorrect: false
+        });
+        
+        showTimeUpFeedback(question.correct);
+        disableOptions();
+        
+        setTimeout(() => {
+            currentQuestionIndex++;
+            showQuestion();
+        }, 3000);
+    } catch (error) {
+        console.error('خطأ في انتهاء الوقت:', error);
+        alert('حدث خطأ غير متوقع أثناء معالجة انتهاء الوقت. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function showFeedback(selectedIndex, correctIndex, isCorrect) {
+    const feedbackArea = document.getElementById('feedbackArea');
+    const options = document.querySelectorAll('.option-btn');
+    
+    if (isCorrect) {
+        feedbackArea.innerHTML = '<div class="text-green-600 font-bold text-xl">أحسنت! إجابة صحيحة</div>';
+        feedbackArea.className = 'text-center p-4 rounded-xl mb-4 bg-green-100';
+        options[selectedIndex].className = 'option-btn bg-green-100 border-2 border-green-500 p-4 rounded-xl text-right';
+    } else {
+        feedbackArea.innerHTML = '<div class="text-orange-600 font-bold text-xl">إجابة خاطئة - الإجابة الصحيحة هي: ' + questions[currentQuestionIndex].options[correctIndex] + '</div>';
+        feedbackArea.className = 'text-center p-4 rounded-xl mb-4 bg-orange-100';
+        options[selectedIndex].className = 'option-btn bg-red-100 border-2 border-red-500 p-4 rounded-xl text-right';
+        options[correctIndex].className = 'option-btn bg-green-100 border-2 border-green-500 p-4 rounded-xl text-right';
+    }
+    
+    feedbackArea.classList.remove('hidden');
+}
+
+function showTimeUpFeedback(correctIndex) {
+    const feedbackArea = document.getElementById('feedbackArea');
+    const options = document.querySelectorAll('.option-btn');
+    
+    feedbackArea.innerHTML = '<div class="text-orange-600 font-bold text-xl">انتهى الوقت! الإجابة الصحيحة هي: ' + questions[currentQuestionIndex].options[correctIndex] + '</div>';
+    feedbackArea.className = 'text-center p-4 rounded-xl mb-4 bg-orange-100';
+    options[correctIndex].className = 'option-btn bg-green-100 border-2 border-green-500 p-4 rounded-xl text-right';
+    
+    feedbackArea.classList.remove('hidden');
+}
+
+function disableOptions() {
+    const options = document.querySelectorAll('.option-btn');
+    options.forEach(option => {
+        option.disabled = true;
+        option.onclick = null;
+    });
+}
+
+function endTest() {
+    try {
+        clearAllIntervals();
+        
+        const percentage = Math.round((currentUser.score / questions.length) * 100);
+        let grade = '';
+        
+        if (percentage >= 90) grade = 'ممتاز';
+        else if (percentage >= 80) grade = 'جيد جداً';
+        else if (percentage >= 70) grade = 'جيد';
+        else if (percentage >= 60) grade = 'مقبول';
+        else grade = 'ضعيف';
+        
+        // حفظ النتيجة
+        const result = {
+            name: currentUser.name,
+            class: currentUser.class,
+            score: currentUser.score,
+            total: questions.length,
+            percentage: percentage,
+            grade: grade,
+            date: new Date().toLocaleDateString('ar-SA'),
+            answers: currentUser.answers
+        };
+        
+        studentResults.push(result);
+        
+        try {
+            localStorage.setItem('studentResults', JSON.stringify(studentResults));
+        } catch (error) {
+            console.error('خطأ في حفظ النتائج:', error);
+            alert('تعذر حفظ النتائج في التخزين المحلي. قد تفقد النتائج إذا أغلقت المتصفح.');
+        }
+        
+        switchScreen('testScreen', 'resultsScreen');
+        
+        document.getElementById('finalScore').textContent = currentUser.score + ' من ' + questions.length;
+        document.getElementById('percentage').textContent = percentage + '%';
+        document.getElementById('grade').textContent = grade;
+    } catch (error) {
+        console.error('خطأ في إنهاء الاختبار:', error);
+        alert('حدث خطأ غير متوقع أثناء إنهاء الاختبار. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+// وظائف النتائج
+function showCertificate() {
+    try {
+        const percentage = Math.round((currentUser.score / questions.length) * 100);
+        let grade = '';
+        
+        if (percentage >= 90) grade = 'ممتاز';
+        else if (percentage >= 80) grade = 'جيد جداً';
+        else if (percentage >= 70) grade = 'جيد';
+        else if (percentage >= 60) grade = 'مقبول';
+        else grade = 'ضعيف';
+        
+        document.getElementById('certSchoolName').textContent = testSettings.schoolName;
+        document.getElementById('certStudentName').textContent = currentUser.name;
+        document.getElementById('certGrade').textContent = testSettings.grade;
+        document.getElementById('certClass').textContent = currentUser.class;
+        document.getElementById('certTestName').textContent = testSettings.testName;
+        document.getElementById('certSubject').textContent = testSettings.subject;
+        document.getElementById('certScore').textContent = currentUser.score;
+        document.getElementById('certTotalScore').textContent = questions.length;
+        document.getElementById('certPercentage').textContent = percentage + '%';
+        document.getElementById('certGradeText').textContent = grade;
+        document.getElementById('certTeacher').textContent = testSettings.teacher;
+        document.getElementById('certPrincipal').textContent = testSettings.principal;
+        document.getElementById('certDate').textContent = new Date().toLocaleDateString('ar-SA');
+        document.getElementById('certNumber').textContent = 'CERT-' + Date.now();
+        
+        document.getElementById('certificateScreen').classList.remove('hidden');
+    } catch (error) {
+        console.error('خطأ في عرض الشهادة:', error);
+        alert('حدث خطأ غير متوقع أثناء عرض الشهادة. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function closeCertificate() {
+    document.getElementById('certificateScreen').classList.add('hidden');
+}
+
+function printCertificate() {
+    window.print();
+}
+
+function shareWhatsApp() {
+    try {
+        const percentage = Math.round((currentUser.score / questions.length) * 100);
+        let grade = '';
+        
+        if (percentage >= 90) grade = 'ممتاز';
+        else if (percentage >= 80) grade = 'جيد جداً';
+        else if (percentage >= 70) grade = 'جيد';
+        else if (percentage >= 60) grade = 'مقبول';
+        else grade = 'ضعيف';
+        
+        const message = `نتيجة "${testSettings.testName}"
+للطالب: ${currentUser.name}
+الفصل: ${currentUser.class}
+الدرجة: ${currentUser.score} من ${questions.length}
+النسبة: ${percentage}%
+التقدير: ${grade}
+التاريخ: ${new Date().toLocaleDateString('ar-SA')}
+# ${testSettings.schoolName}`;
+        
+        const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+    } catch (error) {
+        console.error('خطأ في المشاركة عبر واتساب:', error);
+        alert('حدث خطأ غير متوقع أثناء المشاركة عبر واتساب. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function retakeTest() {
+    currentUser.score = 0;
+    currentUser.answers = [];
+    currentQuestionIndex = 0;
+    
+    switchScreen('resultsScreen', 'testScreen');
+    showQuestion();
+}
+
+// وظائف دخول المعلم
+function showTeacherLogin() {
+    document.getElementById('teacherLoginScreen').classList.remove('hidden');
+}
+
+function closeTeacherLogin() {
+    document.getElementById('teacherLoginScreen').classList.add('hidden');
+    document.getElementById('teacherUsername').value = '';
+    document.getElementById('teacherPassword').value = '';
+}
+
+function teacherLogin() {
+    try {
+        const username = document.getElementById('teacherUsername').value;
+        const password = document.getElementById('teacherPassword').value;
+        
+        if (username === 'admin' && password === '123456') {
+            closeTeacherLogin();
+            switchScreen('mainScreen', 'teacherDashboard');
+            loadTeacherData();
+        } else {
+            alert('اسم المستخدم أو كلمة المرور غير صحيحة');
+        }
+    } catch (error) {
+        console.error('خطأ في تسجيل دخول المعلم:', error);
+        alert('حدث خطأ غير متوقع أثناء تسجيل الدخول. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function teacherLogout() {
+    switchScreen('teacherDashboard', 'mainScreen');
+}
+
+// وظائف لوحة تحكم المعلم
+function showTab(tabName) {
+    try {
+        // إخفاء جميع التبويبات
+        document.querySelectorAll('.tab-content').forEach(tab => {
+            tab.classList.add('hidden');
+        });
+        
+        // إزالة التنسيق النشط من جميع الأزرار
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.className = 'tab-btn px-6 py-4 font-semibold text-gray-600 hover:text-blue-600';
+        });
+        
+        // إظهار التبويب المحدد
+        document.getElementById(tabName + 'Tab').classList.remove('hidden');
+        
+        // تفعيل الزر المحدد
+        document.querySelector(`.tab-btn[data-tab="${tabName}"]`).className = 'tab-btn px-6 py-4 font-semibold text-blue-600 border-b-2 border-blue-600';
+        
+        if (tabName === 'statistics') {
+            updateStatistics();
+            analyzeQuestionsPerformance();
+        } else if (tabName === 'results') {
+            loadStudentResults();
+        } else if (tabName === 'classes') {
+            loadClasses();
+        } else if (tabName === 'questions') {
+            loadQuestions();
+        }
+    } catch (error) {
+        console.error('خطأ في تغيير التبويب:', error);
+        alert('حدث خطأ غير متوقع أثناء تغيير التبويب. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function loadTeacherData() {
+    // تحميل الإعدادات
+    document.getElementById('settingSchoolName').value = testSettings.schoolName;
+    document.getElementById('settingSubject').value = testSettings.subject;
+    document.getElementById('settingTestName').value = testSettings.testName;
+    document.getElementById('settingGrade').value = testSettings.grade;
+    document.getElementById('settingTeacher').value = testSettings.teacher;
+    document.getElementById('settingPrincipal').value = testSettings.principal;
+    document.getElementById('settingQuestionTime').value = testSettings.questionTime;
+    
+    loadClasses();
+    loadQuestions();
+}
+
+function saveSettings() {
+    try {
+        testSettings.schoolName = document.getElementById('settingSchoolName').value;
+        testSettings.subject = document.getElementById('settingSubject').value;
+        testSettings.testName = document.getElementById('settingTestName').value;
+        testSettings.grade = document.getElementById('settingGrade').value;
+        testSettings.teacher = document.getElementById('settingTeacher').value;
+        testSettings.principal = document.getElementById('settingPrincipal').value;
+        testSettings.questionTime = parseInt(document.getElementById('settingQuestionTime').value);
+        
+        // تحديث الواجهة الرئيسية
+        updateUIWithSettings();
+        
+        alert('تم حفظ الإعدادات بنجاح');
+    } catch (error) {
+        console.error('خطأ في حفظ الإعدادات:', error);
+        alert('حدث خطأ غير متوقع أثناء حفظ الإعدادات. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function resetSettings() {
+    if (confirm('هل أنت متأكد من إعادة ضبط الإعدادات؟')) {
+        testSettings = {
+            schoolName: 'مدرسة الوليد بن عمارة الابتدائية',
+            subject: 'العلوم',
+            testName: 'اختبار درس الخلايا',
+            grade: 'الرابع الابتدائي',
+            teacher: 'أ. عبدالله الشهري',
+            principal: 'أ. خالد الحمرين',
+            questionTime: 30
+        };
+        
+        loadTeacherData();
+        alert('تم إعادة ضبط الإعدادات');
+    }
+}
+
+// إدارة الفصول
+function loadClasses() {
+    try {
+        const classesList = document.getElementById('classesList');
+        classesList.innerHTML = '';
+        
+        classes.forEach((className, index) => {
+            const classDiv = document.createElement('div');
+            classDiv.className = 'flex justify-between items-center bg-gray-50 p-3 rounded-lg';
+            classDiv.innerHTML = `
+                <span class="font-semibold">${className}</span>
+                <div class="flex gap-2">
+                    <button onclick="editClass(${index})" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                        تعديل
+                    </button>
+                    <button onclick="deleteClass(${index})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
+                        حذف
+                    </button>
+                </div>
+            `;
+            classesList.appendChild(classDiv);
+        });
+        
+        // تحديث قائمة الفصول في الواجهة الرئيسية
+        loadClassesToSelect();
+    } catch (error) {
+        console.error('خطأ في تحميل الفصول:', error);
+        alert('حدث خطأ غير متوقع أثناء تحميل الفصول. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function addClass() {
+    try {
+        const newClassName = document.getElementById('newClassName').value.trim();
+        
+        if (!newClassName) {
+            alert('يرجى إدخال اسم الفصل');
+            return;
+        }
+        
+        if (classes.includes(newClassName)) {
+            alert('هذا الفصل موجود بالفعل');
+            return;
+        }
+        
+        classes.push(newClassName);
+        document.getElementById('newClassName').value = '';
+        loadClasses();
+    } catch (error) {
+        console.error('خطأ في إضافة فصل:', error);
+        alert('حدث خطأ غير متوقع أثناء إضافة الفصل. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function editClass(index) {
+    try {
+        const newName = prompt('أدخل الاسم الجديد للفصل:', classes[index]);
+        
+        if (newName && newName.trim() && !classes.includes(newName.trim())) {
+            classes[index] = newName.trim();
+            loadClasses();
+        }
+    } catch (error) {
+        console.error('خطأ في تعديل الفصل:', error);
+        alert('حدث خطأ غير متوقع أثناء تعديل الفصل. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function deleteClass(index) {
+    try {
+        if (confirm('هل أنت متأكد من حذف هذا الفصل؟')) {
+            classes.splice(index, 1);
+            loadClasses();
+        }
+    } catch (error) {
+        console.error('خطأ في حذف الفصل:', error);
+        alert('حدث خطأ غير متوقع أثناء حذف الفصل. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+// إدارة الأسئلة
+function loadQuestions() {
+    try {
+        const questionsList = document.getElementById('questionsList');
+        questionsList.innerHTML = '';
+        
+        questions.forEach((question, index) => {
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'bg-gray-50 p-4 rounded-lg';
+            questionDiv.draggable = true;
+            questionDiv.dataset.index = index;
+            
+            const optionLabels = ['أ', 'ب', 'ج', 'د'];
+            
+            questionDiv.innerHTML = `
+                <div class="flex justify-between items-start mb-3">
+                    <div class="flex-1">
+                        <div class="drag-handle cursor-move text-gray-400 mb-2">☰</div>
+                        <h4 class="font-semibold text-lg mb-3">${index + 1}. ${question.question}</h4>
+                        <div class="grid grid-cols-2 gap-2 mb-3">
+                            ${question.options.map((option, optIndex) => `
+                                <div class="flex items-center ${optIndex === question.correct ? 'text-green-600 font-semibold' : ''}">
+                                    <span class="ml-2">${optionLabels[optIndex]})</span>
+                                    <span>${option}</span>
+                                    ${optIndex === question.correct ? '<span class="mr-2">✓</span>' : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editQuestion(${index})" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                            تعديل
+                        </button>
+                        <button onclick="deleteQuestion(${index})" class="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded text-sm">
+                            حذف
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            questionsList.appendChild(questionDiv);
+        });
+        
+        // تفعيل السحب والإفلات
+        if (typeof Sortable !== 'undefined') {
+            new Sortable(questionsList, {
+                animation: 150,
+                ghostClass: 'sortable-ghost',
+                onEnd: function(evt) {
+                    const oldIndex = evt.oldIndex;
+                    const newIndex = evt.newIndex;
+                    
+                    const movedQuestion = questions.splice(oldIndex, 1)[0];
+                    questions.splice(newIndex, 0, movedQuestion);
+                    
+                    loadQuestions();
+                }
+            });
+        }
+    } catch (error) {
+        console.error('خطأ في تحميل الأسئلة:', error);
+        alert('حدث خطأ غير متوقع أثناء تحميل الأسئلة. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function addQuestion() {
+    try {
+        const questionText = document.getElementById('newQuestionText').value.trim();
+        const option1 = document.getElementById('option1').value.trim();
+        const option2 = document.getElementById('option2').value.trim();
+        const option3 = document.getElementById('option3').value.trim();
+        const option4 = document.getElementById('option4').value.trim();
+        const correctAnswer = parseInt(document.getElementById('correctAnswer').value);
+        
+        if (!questionText || !option1 || !option2 || !option3 || !option4) {
+            alert('يرجى إدخال جميع البيانات المطلوبة');
+            return;
+        }
+        
+        const newQuestion = {
+            question: questionText,
+            options: [option1, option2, option3, option4],
+            correct: correctAnswer
+        };
+        
+        questions.push(newQuestion);
+        
+        // مسح النموذج
+        document.getElementById('newQuestionText').value = '';
+        document.getElementById('option1').value = '';
+        document.getElementById('option2').value = '';
+        document.getElementById('option3').value = '';
+        document.getElementById('option4').value = '';
+        document.getElementById('correctAnswer').value = '0';
+        
+        loadQuestions();
+        alert('تم إضافة السؤال بنجاح');
+    } catch (error) {
+        console.error('خطأ في إضافة سؤال:', error);
+        alert('حدث خطأ غير متوقع أثناء إضافة السؤال. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function editQuestion(index) {
+    try {
+        const question = questions[index];
+        
+        document.getElementById('newQuestionText').value = question.question;
+        document.getElementById('option1').value = question.options[0];
+        document.getElementById('option2').value = question.options[1];
+        document.getElementById('option3').value = question.options[2];
+        document.getElementById('option4').value = question.options[3];
+        document.getElementById('correctAnswer').value = question.correct;
+        
+        // حذف السؤال القديم
+        questions.splice(index, 1);
+        
+        // إعادة تحميل الأسئلة
+        loadQuestions();
+        
+        alert('يمكنك الآن تعديل السؤال في نموذج إضافة السؤال الجديد');
+    } catch (error) {
+        console.error('خطأ في تعديل سؤال:', error);
+        alert('حدث خطأ غير متوقع أثناء تعديل السؤال. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function deleteQuestion(index) {
+    try {
+        if (confirm('هل أنت متأكد من حذف هذا السؤال؟')) {
+            questions.splice(index, 1);
+            loadQuestions();
+        }
+    } catch (error) {
+        console.error('خطأ في حذف سؤال:', error);
+        alert('حدث خطأ غير متوقع أثناء حذف السؤال. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+// تحليل أداء الأسئلة
+function analyzeQuestionsPerformance() {
+    try {
+        if (studentResults.length === 0) {
+            document.getElementById('mostSuccessfulList').innerHTML = '<p class="text-gray-500 text-center">لا توجد بيانات كافية لتحليل الأسئلة</p>';
+            document.getElementById('leastSuccessfulList').innerHTML = '<p class="text-gray-500 text-center">لا توجد بيانات كافية لتحليل الأسئلة</p>';
+            return;
+        }
+
+        // حساب إحصائيات كل سؤال
+        const questionStats = questions.map((q, index) => {
+            let correctAnswers = 0;
+            let totalAttempts = 0;
+
+            // حساب الإجابات الصحيحة والإجمالية لكل سؤال
+            studentResults.forEach(result => {
+                if (result.answers && result.answers.length > index) {
+                    totalAttempts++;
+                    if (result.answers[index].isCorrect) {
+                        correctAnswers++;
+                    }
+                }
+            });
+
+            const successRate = totalAttempts > 0 ? (correctAnswers / totalAttempts) * 100 : 0;
+            const errorRate = 100 - successRate;
+
+            return {
+                question: q.question,
+                successRate: Math.round(successRate),
+                errorRate: Math.round(errorRate),
+                totalAttempts: totalAttempts,
+                correctAnswers: correctAnswers,
+                wrongAnswers: totalAttempts - correctAnswers
+            };
+        });
+
+        // ترتيب الأسئلة حسب نسبة النجاح (من الأعلى إلى الأقل)
+        const mostSuccessful = [...questionStats]
+            .filter(stat => stat.totalAttempts > 0)
+            .sort((a, b) => b.successRate - a.successRate);
+
+        // ترتيب الأسئلة حسب نسبة الخطأ (من الأعلى إلى الأقل)
+        const leastSuccessful = [...questionStats]
+            .filter(stat => stat.totalAttempts > 0)
+            .sort((a, b) => b.errorRate - a.errorRate);
+
+        // عرض الأسئلة الأكثر نجاحاً (مناطق القوة)
+        const mostSuccessfulList = document.getElementById('mostSuccessfulList');
+        mostSuccessfulList.innerHTML = '';
+        
+        if (mostSuccessful.length > 0) {
+            mostSuccessful.slice(0, 5).forEach((stat, index) => {
+                const statItem = document.createElement('div');
+                statItem.className = 'bg-white p-3 rounded-lg border border-gray-200';
+                statItem.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-semibold">${index + 1}. ${stat.question}</span>
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                            ${stat.successRate}% نجاح
+                        </span>
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        ${stat.correctAnswers} إجابة صحيحة من ${stat.totalAttempts} محاولة
+                    </div>
+                    <div class="mt-2 bg-gray-200 rounded-full h-2">
+                        <div class="bg-green-500 h-2 rounded-full" style="width: ${stat.successRate}%"></div>
+                    </div>
+                `;
+                mostSuccessfulList.appendChild(statItem);
+            });
+        } else {
+            mostSuccessfulList.innerHTML = '<p class="text-gray-500 text-center">لا توجد بيانات للأسئلة الناجحة</p>';
+        }
+
+        // عرض الأسئلة الأقل نجاحاً (مناطق الضعف)
+        const leastSuccessfulList = document.getElementById('leastSuccessfulList');
+        leastSuccessfulList.innerHTML = '';
+        
+        if (leastSuccessful.length > 0) {
+            leastSuccessful.slice(0, 5).forEach((stat, index) => {
+                const statItem = document.createElement('div');
+                statItem.className = 'bg-white p-3 rounded-lg border border-gray-200';
+                statItem.innerHTML = `
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="font-semibold">${index + 1}. ${stat.question}</span>
+                        <span class="px-2 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                            ${stat.errorRate}% خطأ
+                        </span>
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        ${stat.wrongAnswers} إجابة خاطئة من ${stat.totalAttempts} محاولة
+                    </div>
+                    <div class="mt-2 bg-gray-200 rounded-full h-2">
+                        <div class="bg-red-500 h-2 rounded-full" style="width: ${stat.errorRate}%"></div>
+                    </div>
+                `;
+                leastSuccessfulList.appendChild(statItem);
+            });
+        } else {
+            leastSuccessfulList.innerHTML = '<p class="text-gray-500 text-center">لا توجد بيانات للأسئلة الضعيفة</p>';
+        }
+    } catch (error) {
+        console.error('خطأ في تحليل أداء الأسئلة:', error);
+        alert('حدث خطأ غير متوقع أثناء تحليل أداء الأسئلة. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+// الإحصائيات
+function updateStatistics() {
+    try {
+        const results = studentResults;
+        
+        if (results.length === 0) {
+            document.getElementById('totalStudents').textContent = '0';
+            document.getElementById('averageScore').textContent = '0';
+            document.getElementById('highestScore').textContent = '0';
+            document.getElementById('passRate').textContent = '0%';
+            return;
+        }
+        
+        const totalStudents = results.length;
+        const totalScore = results.reduce((sum, result) => sum + result.score, 0);
+        const averageScore = (totalScore / totalStudents).toFixed(1);
+        const highestScore = Math.max(...results.map(result => result.score));
+        const passedStudents = results.filter(result => result.percentage >= 60).length;
+        const passRate = Math.round((passedStudents / totalStudents) * 100);
+        
+        document.getElementById('totalStudents').textContent = totalStudents;
+        document.getElementById('averageScore').textContent = averageScore;
+        document.getElementById('highestScore').textContent = highestScore;
+        document.getElementById('passRate').textContent = passRate + '%';
+        
+        // رسم المخططات البيانية
+        drawScoresChart(results);
+        drawClassPerformanceChart(results);
+    } catch (error) {
+        console.error('خطأ في تحديث الإحصائيات:', error);
+        alert('حدث خطأ غير متوقع أثناء تحديث الإحصائيات. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function drawScoresChart(results) {
+    try {
+        const canvas = document.getElementById('scoresChart');
+        if (!canvas) return;
+        
+        // تدمير المخطط السابق إن وجد
+        if (window.scoresChartInstance) {
+            window.scoresChartInstance.destroy();
+        }
+        
+        const ctx = canvas.getContext('2d');
+        
+        // تجميع الدرجات
+        const scoreGroups = {
+            '0-1': 0,
+            '2-3': 0,
+            '4-5': 0
+        };
+        
+        results.forEach(result => {
+            if (result.score <= 1) scoreGroups['0-1']++;
+            else if (result.score <= 3) scoreGroups['2-3']++;
+            else scoreGroups['4-5']++;
+        });
+        
+        window.scoresChartInstance = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(scoreGroups),
+                datasets: [{
+                    label: 'عدد الطلاب',
+                    data: Object.values(scoreGroups),
+                    backgroundColor: ['#ef4444', '#f59e0b', '#10b981']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    }
+                }
+            }
+        });
+    } catch (error) {
+        console.error('خطأ في رسم مخطط الدرجات:', error);
+    }
+}
+
+function drawClassPerformanceChart(results) {
+    try {
+        const canvas = document.getElementById('classPerformanceChart');
+        if (!canvas) return;
+        
+        // تدمير المخطط السابق إن وجد
+        if (window.classChartInstance) {
+            window.classChartInstance.destroy();
+        }
+        
+        const ctx = canvas.getContext('2d');
+        
+        // تجميع النتائج حسب الفصل
+        const classPerformance = {};
+        
+        results.forEach(result => {
+            if (!classPerformance[result.class]) {
+                classPerformance[result.class] = {
+                    total: 0,
+                    sum: 0
+                };
+            }
+            classPerformance[result.class].total++;
+            classPerformance[result.class].sum += result.percentage;
+        });
+        
+        const classNames = Object.keys(classPerformance);
+        const averages = classNames.map(className => 
+            (classPerformance[className].sum / classPerformance[className].total).toFixed(1)
+        );
+        
+        window.classChartInstance = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: classNames,
+                datasets: [{
+                    data: averages,
+                    backgroundColor: ['#3b82f6', '#10b981', '#f59e0b', '#ef4444']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    } catch (error) {
+        console.error('خطأ في رسم مخطط أداء الفصول:', error);
+    }
+}
+
+// نتائج الطلاب
+function loadStudentResults() {
+    displayResults(studentResults);
+}
+
+function displayResults(results) {
+    try {
+        const tbody = document.getElementById('resultsTableBody');
+        tbody.innerHTML = '';
+        
+        if (results.length === 0) {
+            const row = document.createElement('tr');
+            row.innerHTML = `<td colspan="7" class="px-6 py-4 text-center">لا توجد نتائج لعرضها</td>`;
+            tbody.appendChild(row);
+            return;
+        }
+        
+        results.forEach((result, index) => {
+            const row = document.createElement('tr');
+            row.className = 'border-b border-gray-200';
+            
+            row.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${result.name}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${result.class}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${result.score}/${result.total}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${result.percentage}%</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${result.grade}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${result.date}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <button onclick="deleteResult(${index})" class="text-red-600 hover:text-red-900">
+                        حذف
+                    </button>
+                </td>
+            `;
+            
+            tbody.appendChild(row);
+        });
+    } catch (error) {
+        console.error('خطأ في عرض النتائج:', error);
+        alert('حدث خطأ غير متوقع أثناء عرض النتائج. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function filterResults() {
+    try {
+        const searchTerm = document.getElementById('searchStudent').value.toLowerCase();
+        const sortBy = document.getElementById('sortBy').value;
+        const sortOrder = document.getElementById('sortOrder').value;
+        
+        let filteredResults = studentResults.filter(result => 
+            result.name.toLowerCase().includes(searchTerm)
+        );
+        
+        // الفرز
+        filteredResults.sort((a, b) => {
+            let aValue, bValue;
+            
+            switch (sortBy) {
+                case 'name':
+                    aValue = a.name;
+                    bValue = b.name;
+                    break;
+                case 'class':
+                    aValue = a.class;
+                    bValue = b.class;
+                    break;
+                case 'score':
+                    aValue = a.score;
+                    bValue = b.score;
+                    break;
+                case 'percentage':
+                    aValue = a.percentage;
+                    bValue = b.percentage;
+                    break;
+                case 'grade':
+                    // تحويل التقدير إلى قيمة رقمية للفرز
+                    const gradeOrder = { 'ممتاز': 5, 'جيد جداً': 4, 'جيد': 3, 'مقبول': 2, 'ضعيف': 1 };
+                    aValue = gradeOrder[a.grade] || 0;
+                    bValue = gradeOrder[b.grade] || 0;
+                    break;
+                case 'date':
+                    aValue = new Date(a.date);
+                    bValue = new Date(b.date);
+                    break;
+                default:
+                    return 0;
+            }
+            
+            if (sortOrder === 'asc') {
+                return aValue > bValue ? 1 : -1;
+            } else {
+                return aValue < bValue ? 1 : -1;
+            }
+        });
+        
+        displayResults(filteredResults);
+    } catch (error) {
+        console.error('خطأ في تصفية النتائج:', error);
+        alert('حدث خطأ غير متوقع أثناء تصفية النتائج. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function deleteResult(index) {
+    try {
+        if (confirm('هل أنت متأكد من حذف نتيجة هذا الطالب؟')) {
+            studentResults.splice(index, 1);
+            try {
+                localStorage.setItem('studentResults', JSON.stringify(studentResults));
+            } catch (error) {
+                console.error('خطأ في حفظ النتائج بعد الحذف:', error);
+            }
+            loadStudentResults();
+            updateStatistics();
+        }
+    } catch (error) {
+        console.error('خطأ في حذف النتيجة:', error);
+        alert('حدث خطأ غير متوقع أثناء حذف النتيجة. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function clearAllResults() {
+    try {
+        if (confirm('هل أنت متأكد من مسح جميع نتائج الطلاب؟ لا يمكن التراجع عن هذا الإجراء.')) {
+            studentResults = [];
+            try {
+                localStorage.setItem('studentResults', JSON.stringify(studentResults));
+            } catch (error) {
+                console.error('خطأ في مسح النتائج:', error);
+            }
+            loadStudentResults();
+            updateStatistics();
+            alert('تم مسح جميع النتائج بنجاح');
+        }
+    } catch (error) {
+        console.error('خطأ في مسح جميع النتائج:', error);
+        alert('حدث خطأ غير متوقع أثناء مسح النتائج. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+function exportResults() {
+    try {
+        if (studentResults.length === 0) {
+            alert('لا توجد نتائج للتصدير');
+            return;
+        }
+        
+        if (typeof XLSX === 'undefined') {
+            alert('مكتبة Excel غير متوفرة');
+            return;
+        }
+        
+        const ws = XLSX.utils.json_to_sheet(studentResults.map(result => ({
+            'اسم الطالب': result.name,
+            'الفصل': result.class,
+            'الدرجة': result.score + '/' + result.total,
+            'النسبة المئوية': result.percentage + '%',
+            'التقدير': result.grade,
+            'التاريخ': result.date
+        })));
+        
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'نتائج الطلاب');
+        
+        XLSX.writeFile(wb, 'نتائج_الطلاب.xlsx');
+    } catch (error) {
+        console.error('خطأ في تصدير Excel:', error);
+        alert('حدث خطأ غير متوقع أثناء تصدير الملف. يرجى المحاولة مرة أخرى.');
+    }
+}
+
+// وظائف مساعدة
+function switchScreen(fromScreen, toScreen) {
+    clearAllIntervals();
+    document.getElementById(fromScreen).classList.add('hidden');
+    document.getElementById(toScreen).classList.remove('hidden');
+}
+
+function clearAllIntervals() {
+    if (timer) {
+        clearInterval(timer);
+        timer = null;
+    }
+}
+
+// تعريف الدوال التي يتم استدعاؤها من HTML
+window.editClass = editClass;
+window.deleteClass = deleteClass;
+window.editQuestion = editQuestion;
+window.deleteQuestion = deleteQuestion;
+window.deleteResult = deleteResult;
+</script>
+
+</body>
+</html>
